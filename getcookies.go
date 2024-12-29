@@ -81,36 +81,57 @@ func rodToCollyCookies() []*http.Cookie {
 	}
 	defer file.Close()
 
+	type cookietype struct {
+		name         string
+		value        string
+		domain       string
+		path         string
+		expires      float64
+		size         int
+		httpOnly     bool
+		secure       bool
+		session      bool
+		priority     string
+		sameParty    bool
+		sourceScheme string
+		sourcePort   int
+	}
+	var cookies []cookietype
+
 	var collyCookies []*http.Cookie
 	dec := json.NewDecoder(file)
 
 	for {
-		var c any
-		if err := dec.Decode(&c); err == io.EOF {
+
+		if err := dec.Decode(&cookies); err == io.EOF {
 			break
 		} else if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Print(c)
-		CTime := (c.(map[string]interface{})["path"].(float64))
-		expirationTime := time.Unix(int64(CTime), int64((CTime-float64(int64(CTime)))*1e9))
 
-		collyCookies = append(collyCookies, &http.Cookie{
-			Name:    c.(map[string]interface{})["name"].(string),
-			Value:   c.(map[string]interface{})["value"].(string),
-			Domain:  c.(map[string]interface{})["domain"].(string),
-			Path:    c.(map[string]interface{})["path"].(string),
-			Expires: expirationTime,
-			/*um ok. problem. http.cookie doesn't have all the necessary
-			fields that the cookies i got from go have. so we're going to
-			have to give gcschool cookies with missing fields??
-			the problem with gocolly is that its collector ONLY
-			accepts http.Cookie objects. so like i have no idea if this
-			will work. missing fields: size,
-			*/
-			//NEVERMIND  GRACENET DOESNT EVEN CHECK 👅
+		for _, c := range cookies {
+			CTime := c.expires
+			expirationTime := time.Unix(int64(CTime), int64((CTime-float64(int64(CTime)))*1e9))
 
-		})
+			collyCookies = append(collyCookies, &http.Cookie{
+				Name:    c.name,
+				Value:   c.value,
+				Domain:  c.domain,
+				Path:    c.path,
+				Expires: expirationTime,
+				/*um ok. problem. http.cookie doesn't have all the necessary
+				fields that the cookies i got from go have. so we're going to
+				have to give gcschool cookies with missing fields??
+				the problem with gocolly is that its collector ONLY
+				accepts http.Cookie objects. so like i have no idea if this
+				will work. missing fields: size,
+				*/
+				//NEVERMIND  GRACENET DOESNT EVEN CHECK 👅
+				//oh. also i have to change to a for loop because
+				// apparently decode treats the entire array like one json decoded thing.
+			})
+		}
+
 	}
 	return collyCookies
 }
